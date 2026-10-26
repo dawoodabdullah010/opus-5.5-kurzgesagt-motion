@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>apollo 13</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=block" rel="stylesheet">
+<style>
+*{margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#0a0835}
+canvas{display:block}
+</style>
+<script src="beats.js"></script>
+<script>
+window.FPS = 60;
+window.LAST_FRAME = window.LAST;
+window.STAGE_W = 1920; window.STAGE_H = 1080;
+</script>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script src="lib.js"></script>
+<script src="film.js"></script>
+<script>
+(async () => {
+  for (const f of ['600 40px Fredoka', '700 40px Fredoka']) await document.fonts.load(f);
+  await document.fonts.ready;
+  window.seekFrame(0);
+  window.ready = true;
+})();
+</script>
+</body></html>

@@ -1,0 +1,152 @@
+{
+ "offset": 0.3,
+ "endcard": 1.45,
+ "beats": {
+  "april": [
+   "april"
+  ],
+  "miles": [
+   "two"
+  ],
+  "then": [
+   "then"
+  ],
+  "bang": [
+   "bang"
+  ],
+  "tank": [
+   "tank"
+  ],
+  "leaking": [
+   "leaking"
+  ],
+  "houston": [
+   "houston"
+  ],
+  "landing": [
+   "landing"
+  ],
+  "over": [
+   "over"
+  ],
+  "goal": [
+   "goal"
+  ],
+  "home": [
+   "home"
+  ],
+  "lander": [
+   "lander"
+  ],
+  "built": [
+   "built"
+  ],
+  "three": [
+   "three",
+   2
+  ],
+  "four": [
+   "four"
+  ],
+  "power": [
+   "power"
+  ],
+  "shut": [
+   "shut"
+  ],
+  "cabin": [
+   "cabin"
+  ],
+  "freezing": [
+   "freezing"
+  ],
+  "breath": [
+   "breath"
+  ],
+  "toxic": [
+   "toxic"
+  ],
+  "square": [
+   "square"
+  ],
+  "round_": [
+   "round"
+  ],
+  "builds": [
+   "builds"
+  ],
+  "cover": [
+   "flight-plan"
+  ],
+  "bags": [
+   "bags"
+  ],
+  "tape": [
+   "duct"
+  ],
+  "sock": [
+   "sock"
+  ],
+  "works": [
+   "works"
+  ],
+  "swing": [
+   "swing"
+  ],
+  "farther": [
+   "farther"
+  ],
+  "fall": [
+   "fall"
+  ],
+  "april2": [
+   "april",
+   2
+  ],
+  "parachutes": [
+   "parachutes"
+  ],
+  "pacific": [
+   "pacific"
+  ],
+  "all3": [
+   "all"
+  ],
+  "cut1": [
+   "then",
+   1,
+   -0.1,
+   "cut"
+  ],
+  "cut2": [
+   "houston",
+   1,
+   -0.3,
+   "cut"
+  ],
+  "cut3": [
+   "built",
+   1,
+   -0.15,
+   "cut"
+  ],
+  "cut4": [
+   "to",
+   4,
+   -0.1,
+   "cut"
+  ],
+  "cut5": [
+   "they",
+   3,
+   -0.15,
+   "cut"
+  ],
+  "cut6": [
+   "april",
+   2,
+   -0.15,
+   "cut"
+  ]
+ }
+}

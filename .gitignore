@@ -1,0 +1,10 @@
+*.mp4
+*.mov
+*.wav
+*.mp3
+frames/
+out/
+ref/
+node_modules/
+.venv/
+.env
