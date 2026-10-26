@@ -1,9 +1,9 @@
 ---
-name: kurzgesagt-explainer
+name: opus-5-5-kurzgesagt-motion
 description: Make a Kurzgesagt-style animated explainer (30 s to 2 min) drawn entirely in code, narrated by an ElevenLabs voice with real-room depth and sound effects, checked by a measured evaluation flow before anyone sees it. Use for "make a Kurzgesagt-style video", an animated explainer, a true-story explainer, or to fix one of these films.
 ---
 
-# Kurzgesagt-style explainer
+# Opus 5.5 Kurzgesagt Motion
 
 A method, a code film template and an evaluation flow, built while making two films ("Made of Stars", 26 s, and "Apollo 13 in 60 seconds"). Every rule here is a mistake one of those films made. Follow them literally. Not affiliated with Kurzgesagt; no Kurzgesagt artwork, characters or footage is used or included.
 

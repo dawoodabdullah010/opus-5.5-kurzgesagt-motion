@@ -1,12 +1,12 @@
-# kurzgesagt-explainer
+# Opus 5.5 Kurzgesagt Motion
 
-A Claude Code skill for making Kurzgesagt-style animated explainers entirely in code: a measured style reference, a 60 fps canvas film template, ElevenLabs narration with a "real recording" feel, sound effects, and an evaluation flow (motion scan, per-cut camera measurement, voice-over-effects check, critic agents) that runs before anyone watches the film.
+A Claude Code skill (built with Claude Opus 5.5) for making Kurzgesagt-style animated explainers entirely in code: a measured style reference, a 60 fps canvas film template, ElevenLabs narration with a "real recording" feel, sound effects, and an evaluation flow (motion scan, per-cut camera measurement, voice-over-effects check, critic agents) that runs before anyone watches the film.
 
 Not affiliated with Kurzgesagt. No Kurzgesagt artwork, characters, footage or audio is included.
 
 ## Install
 ```bash
-git clone https://github.com/<you>/kurzgesagt-explainer ~/.claude/skills/kurzgesagt-explainer
+git clone https://github.com/<you>/opus-5.5-kurzgesagt-motion ~/.claude/skills/opus-5-5-kurzgesagt-motion
 ```
 Then ask Claude Code for a Kurzgesagt-style video. Start reading at `SKILL.md`, then `EVAL.md`.
 
