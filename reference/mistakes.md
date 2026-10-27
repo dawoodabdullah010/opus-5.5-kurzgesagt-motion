@@ -30,3 +30,8 @@ Caught by: **D** the director, **C** a critic agent, **B** the builder's own mea
 | K24 | D | "What is that green line?" | An abstract graphic with no label | Every abstract graphic gets a label or a moving cue |
 | K25 | D | A zoom into the ship, then a cut to the lander, "makes no sense" | A camera move stood in for the story action | Show the action the words describe (the crew moving into the lander), then cut |
 | K26 | D | 12–13 s felt rough | Smoke, damage and label vanished at the cut and the ship shrank | Carry every visible state across a cut (or fade it out first) |
+| K27 | C | Two more cuts with a size jump (into the cabin, onto the ocean) after K22 was fixed at one cut | The fix was applied to the cut the director named, not to every cut | Every rule is applied to every cut and shot, not only where the note landed |
+| K28 | C | The spacecraft broke apart next to the Moon | The jettison was drawn where it looked dramatic, not where it happened | Every picture is checked against the facts, not only the words |
+| K29 | C | Items half off-screen, square and round never in frame together | A slow sideways drift accumulated over a 19 s shot | Creep with zoom, not with an unbounded pan; check framing at every key, at the end of each move |
+| K30 | C | Frost drawn as four-point sparkles read as stars indoors; crystal strokes read as bird footprints | Decoration borrowed from another scene | A visual means one thing in a film; frost is an edge haze |
+| K31 | B | 0.1-0.5 alternating frame differences on a slow cabin push | Sub-pixel camera steps on sharp lines | Not a defect below d 1.5; do not chase it |

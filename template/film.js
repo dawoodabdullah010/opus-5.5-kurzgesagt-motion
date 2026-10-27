@@ -1,5 +1,5 @@
 // Apollo 13 in 60 seconds. Every frame is a pure function of t. Helpers come from lib.js.
-// Camera rules (see SKILL.md and EVAL.md): every zoom is straight about one aim point, direction continues or
+// Camera rules (46-motion-skill craft 4.5, 3.10, 11): every zoom is straight about one aim point, direction continues or
 // is zero across every cut, speeds matched across cuts, no white-outs, the camera never parks.
 (() => {
 const B = window.B;
@@ -200,7 +200,7 @@ function shotC(t) {
     [cx, cy] = aim(mx, my, ox * (1 - m) + 300 * m, oy * (1 - m) + 40 * m, z);
   }
   // "They move into the lunar lander": one straight move onto the ship, from the current camera, then a creep
-  const g = eio(inv(B.lander - 1.07, B.lander - .47, t));
+  const g = eio(inv(B.home + .4, B.lander - .47, t));            // a calm push (~3 %/frame peak), not a whip
   if (g > 0) {
     const zc = z, z2 = 5.2 * Math.exp(.04 * Math.max(0, t - B.lander));
     const tx = sx + 12, ox = (tx - cx) * zc, oy = (sy - cy) * zc;
@@ -227,7 +227,7 @@ function shotC(t) {
   }
   const rotC = SHIPROT_C;
   const [hx, hy] = holeAt(sx, sy, .16, rotC);
-  vent(t, hx, hy, .1, 1 - .6 * inv(B.cut2, B.cut2 + 3, t));      // still leaking, thinning out
+  vent(t, hx, hy, .1, (1 - .6 * inv(B.cut2, B.cut2 + 3, t)) * (1 - inv(B.cut3 - .5, B.cut3 - .1, t)));   // thinning out; gone before the cut
   glow(sx, sy, 60, '#9fd8ff', .25);
   ship(t, sx, sy, .16, rotC, { hole: true });
   // the crew moves from the command module into the lander: three helmets along the ship's own axis
@@ -239,7 +239,7 @@ function shotC(t) {
     if (t < t0 - .03 || t > t0 + .25) continue;
     const k = eio(inv(t0, t0 + .24, t));
     const [ax, ay] = toW(lerp(-6, 104, k), lerp(-58, -26, k) - 22 * Math.sin(k * Math.PI));
-    c.save(); c.translate(ax, ay); c.rotate(rotC + .3 * Math.sin(k * Math.PI)); c.globalAlpha = clamp((t - t0 + .03) * 20) * (1 - inv(.8, 1, k));
+    c.save(); c.translate(ax, ay); c.rotate(rotC + .3 * Math.sin(k * Math.PI)); c.scale(2, 2); c.globalAlpha = clamp((t - t0 + .03) * 20) * (1 - inv(.8, 1, k));
     rr(-3.2, 1.5, 6.4, 8, 2.6, '#e6ebf0'); cap([-3, 3, -5.5, 7.5], 2.2, '#d9e1ea'); cap([3, 3, 5.5, 7.5], 2.2, '#d9e1ea');   // a tiny astronaut
     circle(0, -1.5, 3.4, '#f3f7fb'); ell(.5, -1.3, 2.3, 1.8, 0, '#0f2236');
     c.restore();
@@ -270,7 +270,7 @@ function shotC(t) {
   }
   if (t > B.lander - .9) {
     const [px, py] = S([sx + 34, sy - 14]);
-    label(px, py - 70, 'LUNAR LANDER', 32, t - B.lander + .9, 'rgba(6,20,40,.85)', '#ffd98a');
+    label(px, py - 70, 'LUNAR LANDER', 32, t - B.lander + .9, 'rgba(6,20,40,.85)', '#ffd98a', 1 - inv(B.cut3 - .3, B.cut3 - .08, t));
   }
   vignette(.6);
 }
@@ -280,10 +280,7 @@ function shotD(t) {
   const u = t - B.cut3;
   let z = lz(.82, 1, eo(ss(inv(0, 1.4, u)))) * Math.exp(.03 * u);   // C ends on a creep: D leaves rest and pushes in gently
   const wx = 30, wy = -150;                                      // the window into the cabin
-  const w = clamp((t - (B.cut4 - .9)) / .9);
-  let [cx, cy] = aim(wx, wy, -wx * z * .0, (0 - wy) * 0, z);
-  cx = 330; cy = -40;                                            // lander on the left third, the numbers on the right
-  if (w > 0) { const e = Math.pow(w, 3), ze = lz(z, z * 5, e); [cx, cy] = aim(wx, wy, (wx - 330) * z * (1 - e), (wy + 40) * z * (1 - e), ze); z = ze; }
+  const cx = 330, cy = -40;                                      // lander on the left third, the numbers on the right; ends on its creep
   window.CAM = [cx, cy, z];
   spaceBg(t, cx, cy, z); cam(cx, cy, z);
   // descent stage (gold foil) and legs
@@ -322,34 +319,33 @@ function shotD(t) {
 }
 
 // ---------- shot E: the cabin. Power down, the cold, the poisoned air, and the fix ----------
-const PANEL = [-760, -120], THERMO = [-120, -250], LAMP = [260, -260], PORT = [760, 150], FILTER0 = [180, 150];
+const PANEL = [-760, -120], THERMO = [-330, -250], LAMP = [-60, -300], PORT = [760, 150], FILTER0 = [180, 150];
 function shotE(t) {
   const u = t - B.cut4;
-  const keys = [[B.cut4, -700, -100, .62], [B.cut4 + 1.4, -700, -100, 1.05],
-    [B.cabin - .3, -700, -100, 1.12], [B.cabin + 1.0, THERMO[0], THERMO[1] + 60, 1.35],
-    [B.breath - .4, THERMO[0] + 20, THERMO[1] + 60, 1.42], [B.breath + .9, 120, -120, 1.0],
-    [B.square - .6, 140, -110, 1.06], [B.square + .6, 470, 80, 1.15],
-    [B.builds - .3, 470, 70, 1.2], [B.builds + 1.0, 470, 40, .95],
-    [B.works + .25, 470, 0, 1.02]];
+  const keys = [[B.cut4, -420, -60, .86], [B.cut4 + 1.5, -420, -60, .95],          // enters from rest (zero across the cut)
+    [B.cabin - .3, -420, -60, .98], [B.cabin + 1.0, THERMO[0] + 60, THERMO[1] + 170, 1.08],
+    [B.breath - .5, THERMO[0] + 70, THERMO[1] + 170, 1.12], [B.breath + .8, -40, 0, .9],
+    [B.square - .6, -20, 0, .92], [B.square + .5, 420, 30, .86],
+    [B.builds - .3, 420, 20, .88], [B.builds + 1.0, 450, -10, .84],
+    [B.works + .25, 450, 20, .9]];
   let [cx, cy, z] = aimCam(t, keys);
-  if (u < 1.4) z = lz(.36, 1.05, EA(u * 30, .14));               // enters still pushing in (continues D, ~8 %/frame)
-  z *= Math.exp(.04 * u); cx += 14 * u; // never parks: a creep and a drift
+  z *= Math.exp(.03 * u);                                        // never parks: a creep, no sideways drift
   const w = clamp((t - (B.cut5 - .55)) / .55);
   if (w > 0) z *= lz(1, .45, Math.pow(w, 2.2));                  // pulls back, accelerating into the cut
   window.CAM = [cx, cy, z];
   scr();
-  const dark = .32 * eo(inv(B.shut, B.shut + 1.6, t));
-  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a4470'); g.addColorStop(1, '#16284a');
+  const dark = .22 * eo(inv(B.shut, B.shut + 1.6, t));
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2f5f92'); g.addColorStop(1, '#173a66');
   c.fillStyle = g; c.fillRect(0, 0, W, H);
   cam(cx, cy, z);
   // wall structure
   for (let i = -3; i <= 3; i++) rr(i * 520 - 30, -900, 60, 1800, 8, 'rgba(10,20,40,.35)');
   rr(-1400, 330, 2800, 40, 8, 'rgba(10,20,40,.4)');
   // control panel: lights switch off in a wave on "shut almost everything down"
-  rr(PANEL[0] - 330, PANEL[1] - 220, 660, 440, 26, '#2a3a58'); rr(PANEL[0] - 310, PANEL[1] - 200, 620, 400, 18, '#22304b');
+  rr(PANEL[0] - 330, PANEL[1] - 220, 660, 440, 26, '#8fa3bf'); rr(PANEL[0] - 310, PANEL[1] - 200, 620, 400, 18, '#1b2a45');
   for (let r = 0; r < 6; r++) for (let k = 0; k < 10; k++) {
     const x = PANEL[0] - 270 + k * 60, y = PANEL[1] - 160 + r * 62;
-    const off = inv(B.shut + k * .09 + r * .03, B.shut + k * .09 + r * .03 + .12, t);
+    const off = ss(inv(B.shut + k * .09 + r * .03, B.shut + k * .09 + r * .03 + .35, t));   // each light dims over 0.35 s
     const col = (r + k) % 3 === 0 ? '#ffb347' : (r + k) % 3 === 1 ? '#73dd9e' : '#6fd3ff';
     const on = 1 - off * (k % 7 === 3 && r === 2 ? 0 : 1);       // one light stays on
     circle(x, y, 13, '#141d30');
@@ -363,7 +359,7 @@ function shotE(t) {
   circle(THERMO[0], THERMO[1] + 150, 44, '#e6ebf0'); circle(THERMO[0], THERMO[1] + 150, 32, temp > 50 ? '#ff7a4a' : '#6fd3ff');
   // CO2 warning lamp
   const toxic = t > B.toxic, fixed = t > B.works + .2, lampIn = clamp((t - B.toxic) * 8);
-  rr(LAMP[0] - 110, LAMP[1] - 60, 220, 120, 24, '#22304b');
+  rr(LAMP[0] - 110, LAMP[1] - 60, 220, 120, 24, '#8fa3bf');
   const blink = toxic && !fixed ? (.55 + .45 * Math.sin((t - B.toxic) * 9)) * lampIn : 0;
   const lampCol = fixed ? '#73dd9e' : '#ff5a3d';
   if (toxic) glow(LAMP[0], LAMP[1], 200, lampCol, fixed ? .45 : .5 * blink);
@@ -371,7 +367,7 @@ function shotE(t) {
   c.fillStyle = toxic ? '#1a0c10' : '#5a4048'; c.font = '700 44px Fredoka'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.letterSpacing = '2px';
   c.fillText('CO₂', LAMP[0], LAMP[1] + 3);
   // the round hole (the lunar module's air system)
-  circle(PORT[0], PORT[1], 120, '#3a4a68'); circle(PORT[0], PORT[1], 84, '#0c1424'); circle(PORT[0], PORT[1], 84 * .82, '#121c30');
+  circle(PORT[0], PORT[1], 120, '#8fa3bf'); circle(PORT[0], PORT[1], 84, '#0c1424'); circle(PORT[0], PORT[1], 84 * .82, '#121c30');
   if (t > B.round_ - .1) { const k = SS((t - B.round_ + .1) * 30); c.strokeStyle = rgba('#ffd98a', k); c.lineWidth = 6; c.beginPath(); c.arc(PORT[0], PORT[1], 100 + 10 * (1 - k), 0, TAU); c.stroke(); }
   // the square filter: arrives on "square", tries the round hole and stops dead, then the fix
   if (t > B.square - .05) {
@@ -388,11 +384,20 @@ function shotE(t) {
     }
     rr(fx - 110, fy - 110, 220, 220, 16, '#cfd6df'); rr(fx - 110, fy + 40, 220, 70, 16, '#a7b0bd');
     for (let i = 0; i < 5; i++) rr(fx - 85, fy - 80 + i * 32, 170, 12, 6, '#7d8796');
-    if (asm > 0) {                                               // bag over the box, tape across it, cover as a stiffener
-      rr(fx - 128, fy - 128, 256, 256, 30, rgba('#dff3ff', .38 * asm));
-      for (const k of [-60, 60]) rr(fx - 140, fy + k - 14, 280, 28, 4, rgba('#9aa2ae', asm));
-      rr(fx - 128, fy - 150, 256, 40, 8, rgba('#6fa8dc', asm));
+    if (t > B.works - .1) {                                       // bag over the box, tape across it, cover as a stiffener (snap in)
+      const sp = SS((t - B.works + .1) * 30); c.save(); c.translate(fx, fy); c.scale(lerp(.94, 1, sp), lerp(.94, 1, sp));
+      rr(-128, -128, 256, 256, 30, 'rgba(235,246,255,.35)');
+      for (const k of [-60, 60]) rr(-140, k - 14, 280, 28, 4, '#9aa2ae');
+      rr(-128, -150, 256, 40, 8, '#6fa8dc'); c.restore();
     }
+    c.restore();
+  }
+  // the crew, standing, breathing: the CO2 comes from them
+  const CREW = [[-560, 250], [-400, 262], [-240, 250]];
+  for (const [x, y] of CREW) {
+    c.save(); c.translate(x, y + 2 * Math.sin(t * 1.6 + x)); c.scale(.9, .9);
+    rr(-46, -10, 92, 120, 30, '#e6ebf0'); rr(-46, 60, 92, 50, 20, '#c9d1db'); rr(-20, 10, 40, 26, 6, '#8f98a6');
+    cap([-44, 10, -66, 80], 26, '#d9e1ea'); cap([44, 10, 66, 80], 26, '#d9e1ea'); helmet(0, -46, 40, .4);
     c.restore();
   }
   // on-board items, popping in one by one
@@ -400,28 +405,31 @@ function shotE(t) {
   const asmI = eio(inv(B.works - .35, B.works + .1, t));
   for (const [n, t0, ix] of items) {
     if (t < t0 - .05 || asmI >= 1) continue;
-    const a = SS((t - t0 + .05) * 30), x = lerp(ix, 470, asmI), y = lerp(-40 + (1 - a) * 20, 150, asmI), s = lerp(.94, 1, a) * (1 - asmI * .7);
-    c.save(); c.translate(x, y); c.scale(s, s); c.globalAlpha = clamp((t - t0 + .05) * 10) * (1 - asmI);
-    if (n === 'cover') { rr(-70, -90, 140, 180, 8, '#6fa8dc'); rr(-50, -60, 100, 14, 5, '#eaf5ee'); rr(-50, -36, 70, 10, 5, 'rgba(234,245,238,.6)'); }
-    if (n === 'bag') { rr(-75, -85, 150, 170, 34, 'rgba(223,243,255,.55)'); rr(-60, -85, 120, 18, 8, 'rgba(255,255,255,.7)'); }
+    const a = SS((t - t0 + .05) * 30), x = lerp(ix, 470, asmI), y = lerp(-150 + (1 - a) * 20, 150, asmI), s = lerp(.94, 1, a) * (1 - asmI * .85);
+    c.save(); c.translate(x, y); c.scale(s, s); c.globalAlpha = clamp((t - t0 + .05) * 10);   // solid while flying in: no ghosting
+    if (n === 'cover') { rr(-70, -90, 140, 180, 8, '#cfe6ff'); rr(-70, -90, 140, 34, 8, '#6fa8dc'); for (let k = 0; k < 4; k++) rr(-50, -30 + k * 26, 100 - k * 12, 10, 5, '#7a9cc4'); }
+    if (n === 'bag') { c.fillStyle = 'rgba(235,246,255,.92)'; c.beginPath(); c.moveTo(-28, -80); c.lineTo(28, -80); c.lineTo(78, 70); c.quadraticCurveTo(80, 92, 58, 92); c.lineTo(-58, 92); c.quadraticCurveTo(-80, 92, -78, 70); c.closePath(); c.fill(); rr(-34, -92, 68, 18, 8, '#9aa2ae'); ell(-30, 20, 16, 40, .2, 'rgba(255,255,255,.8)'); }
     if (n === 'tape') { circle(0, 0, 70, '#9aa2ae'); circle(0, 0, 34, '#1d2f4f'); circle(-14, -14, 20, 'rgba(255,255,255,.18)'); rr(40, 40, 70, 22, 4, '#9aa2ae'); }
     if (n === 'sock') { c.fillStyle = '#eef2f6'; c.beginPath(); c.moveTo(-30, -80); c.lineTo(20, -80); c.lineTo(20, 20); c.quadraticCurveTo(70, 30, 70, 60); c.quadraticCurveTo(70, 90, 20, 90); c.lineTo(-10, 90); c.quadraticCurveTo(-30, 90, -30, 60); c.closePath(); c.fill(); rr(-34, -86, 58, 24, 8, '#c9d1db'); }
     c.restore();
+    const names = { cover: 'FLIGHT-PLAN COVER', bag: 'BAG', tape: 'DUCT TAPE', sock: 'SOCK' };
+    if (asmI <= 0) { const [px, py] = [W / 2 + (ix - cx) * z, H / 2 + (-150 - 125 - cy) * z]; c.save(); scr(); label(px, py, names[n], 24, t - t0 - .05); c.restore(); cam(cx, cy, z); }
   }
   // CO2: molecules that build up from "breath", sucked into the box on "it works"
   if (t > B.breath) {
     const n = Math.floor(34 * clamp((t - B.breath) / 3));
-    const suck = eio(inv(B.works, B.works + 1.0, t));
+    const suck = eio(inv(B.works - .1, B.works + .5, t));            // cleared quickly on "It works"
     for (let i = 0; i < 34; i++) {
       if (i >= n && suck <= 0) continue;
       const born = B.breath + i / 34 * 3, age = t - born;
       if (age < 0) continue;
-      let x = -900 + hash(i + 200) * 2000 + fl(i, t, 40, .7), y = -350 + hash(i + 201) * 700 + fl(i + 9, t, 30, .9);
+      const [bx, by] = CREW[i % 3], dr = Math.min(age, 2.5);       // exhaled from a helmet, then drifting up and out
+    let x = bx + 40 + dr * (60 + 120 * hash(i + 200)) * (hash(i + 202) > .5 ? 1 : -.4) + fl(i, t, 20, .7), y = by - 60 - dr * (90 + 80 * hash(i + 201)) + fl(i + 9, t, 15, .9);
       x = lerp(x, 470, suck); y = lerp(y, 150, suck);
       const s = SS(age * 30) * (1 - suck);
       if (s <= .01) continue;
       c.save(); c.translate(x, y); c.scale(s, s); c.rotate(hash(i) * 3 + t * .3);
-      circle(-22, 0, 14, '#9aa2b4'); circle(22, 0, 14, '#9aa2b4'); circle(0, 0, 18, '#454a5a'); circle(-5, -6, 5, 'rgba(255,255,255,.25)');
+      circle(-22, 0, 14, '#c9cfdb'); circle(22, 0, 14, '#c9cfdb'); circle(0, 0, 18, '#3b3f4c'); circle(-5, -6, 5, 'rgba(255,255,255,.25)');
       c.restore();
     }
   }
@@ -431,21 +439,17 @@ function shotE(t) {
   const frost = eo(inv(B.cabin, B.freezing + .4, t));
   if (frost > 0) {
     const fg = c.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, W * .62);
-    fg.addColorStop(0, 'rgba(200,235,255,0)'); fg.addColorStop(.7, 'rgba(200,235,255,0)'); fg.addColorStop(1, `rgba(200,235,255,${.3 * frost})`);
+    fg.addColorStop(0, 'rgba(210,240,255,0)'); fg.addColorStop(.62, 'rgba(210,240,255,0)'); fg.addColorStop(1, `rgba(210,240,255,${.42 * frost})`);
     c.fillStyle = fg; c.fillRect(0, 0, W, H);
-    for (let i = 0; i < 46; i++) {
-      const a = hash(i + 300) * TAU, r = 1 - .18 * frost * hash(i + 301);
-      const x = W / 2 + Math.cos(a) * W * .62 * r, y = H / 2 + Math.sin(a) * H * .62 * r;
-      sparkle(x, y, (10 + 18 * hash(i + 302)) * frost, rgba('#eaf8ff', .7 * frost));
-    }
+    // (frost is the haze on the edges only: crystal strokes read as bird footprints)
   }
   if (t > B.cabin + .1) {
-    const [px, py] = [W / 2 + (THERMO[0] + 150 - cx) * z, H / 2 + (THERMO[1] - cy) * z];
-    label(px + 90, py, `${Math.round(temp)}°F`, 46, t - B.cabin - .1, 'rgba(6,20,40,.82)', temp > 50 ? '#ffb08a' : '#bfe9ff');
+    const [px, py] = [W / 2 + (THERMO[0] - cx) * z, H / 2 + (THERMO[1] + 240 - cy) * z];   
+    label(px, py, `${Math.round(temp)}°F`, 46, t - B.cabin - .1, 'rgba(6,20,40,.82)', temp > 50 ? '#ffb08a' : '#bfe9ff');
   }
   if (t > B.works) {
     const [px, py] = [W / 2 + (470 - cx) * z, H / 2 + (150 - 210 - cy) * z];
-    label(px, py - 40, 'IT WORKS', 40, t - B.works - .1, '#2f9e5f', '#eaf5ee');
+    label(px, py - 70, 'IT WORKS', 60, t - B.works - .1, '#2f9e5f', '#eaf5ee');
   }
   vignette(.6);
 }
@@ -454,7 +458,7 @@ function shotE(t) {
 function shipPathF(t) {
   const s = clamp((t - B.cut5) / (B.cut6 - B.cut5));
   const ang = -1.1 + s * 3.6, r = 560 + 160 * Math.max(0, s - .55) * 4;
-  return [Math.cos(ang) * r * 1.05 - Math.max(0, s - .62) * 1600, Math.sin(ang) * r * .55 - 60, ang];
+  return [Math.cos(ang) * r * 1.05 - Math.max(0, s - .62) * 650, Math.sin(ang) * r * .55 - 60, ang];   // stays in frame while it heads home
 }
 function shotF(t) {
   const u = t - B.cut5;
@@ -462,23 +466,25 @@ function shotF(t) {
   let z = lz(1.6, .78, EA(u * 30, .1));                          // enters still pulling back (continues E), settles
   let [cx, cy] = [0, -40];
   // "and fall back home": the camera locks onto the capsule and pushes in, accelerating to the cut
-  const w = clamp((t - B.fall) / (B.cut6 - B.fall));
-  if (w > 0) { const e = Math.pow(w, 2.4), ze = lz(z, z * 9, e); [cx, cy] = aim(sx, sy, (sx - cx) * z * (1 - e), (sy - cy) * z * (1 - e), ze); z = ze; }
+  z *= Math.exp(.04 * Math.max(0, u - 1.5));                     // a creep; the ship flies out toward Earth, the cut is at rest
   window.CAM = [cx, cy, z];
   spaceBg(t, cx, cy, z); cam(cx, cy, z);
   const behind = Math.sin(ang) < -.15 && Math.abs(Math.cos(ang)) < .75;   // on the far side the ship passes behind the Moon
   c.setLineDash([12, 12]); c.strokeStyle = 'rgba(115,221,158,.55)'; c.lineWidth = 4; c.beginPath();
   for (let i = 0; i <= 60; i++) { const [px, py] = shipPathF(B.cut5 + (B.cut6 - B.cut5) * i / 60); i ? c.lineTo(px, py) : c.moveTo(px, py); }
   c.stroke(); c.setLineDash([]);
-  const drawShip = () => { glow(sx, sy, 70, '#9fd8ff', .25); ship(t, sx, sy, .2, Math.PI + ang + Math.PI / 2 - 1.57 + (sx < 0 ? Math.PI : 0) * 0, { sep: eo(inv(B.fall + .25, B.cut6, t)) }); };
+  const [nx, ny] = shipPathF(t + 1 / 60), dir = Math.atan2(ny - sy, nx - sx);
+  const drawShip = () => { glow(sx, sy, 70, '#9fd8ff', .25); ship(t, sx, sy, .2, dir, { hole: true }); };   // lander leads, as in shot A; the stack stays whole
   if (behind) drawShip();
   moon(0, 0, 420);
   if (!behind) drawShip();
   scr();
+  if (t > B.fall - .1) { const [px, py] = [W / 2 + (sx - cx) * z, H / 2 + (sy - cy) * z]; label(clamp(px - 40, 260, W - 260), clamp(py - 80, 100, H - 100), '← BACK TO EARTH', 34, t - B.fall + .1, 'rgba(6,40,30,.88)', '#73dd9e'); }
   if (t > B.farther) {
     const mi = Math.round(lerp(200000, 248655, eo(clamp((t - B.farther) / 1.1))));
-    label(960, 140, `${mi.toLocaleString('en-US')} MILES FROM EARTH`, 34, t - B.farther, 'rgba(6,20,40,.82)', '#ffd98a');
-    label(960, 214, 'FARTHER THAN ANY HUMAN HAD EVER BEEN', 24, t - B.farther - .5, 'rgba(6,20,40,.7)', '#8fd8e6');
+    const fa = 1 - inv(B.fall - .6, B.fall - .2, t);
+    label(960, 140, `${mi.toLocaleString('en-US')} MILES FROM EARTH`, 38, t - B.farther, 'rgba(6,20,40,.82)', '#ffd98a', fa);
+    label(960, 214, 'FARTHER THAN ANY HUMAN HAD EVER BEEN', 28, t - B.farther - .5, 'rgba(6,20,40,.7)', '#8fd8e6', fa);
   }
   vignette(.6);
 }
@@ -490,11 +496,11 @@ function shotG(t) {
   const dy = Math.min(t, splash);
   const capY = lerp(-420, 300, clamp((dy - B.cut6) / (splash - B.cut6)));
   const capX = 40 + 30 * Math.sin(u * .8);
-  let z = lz(.5, .92, EA(u * 30, .12));                          // enters still pushing in (continues F), settles
+  let z = lz(.74, .92, eo(ss(inv(0, 1.8, u))));                  // F ends at rest: G leaves rest (zero across the cut)
   z *= Math.exp(.05 * u);                                        // never parks, through the end card
   const [cx, cy] = aim(capX, capY, 0, lerp(0, -120, eo(ss(inv(B.cut6, B.cut6 + 2.4, t)))) * 0 + 0, z);
   const camY = lerp(capY, 120, inv(splash - .6, splash + .8, t));
-  const C2 = [capX, Math.min(capY, camY)];
+  const C2 = [capX, Math.min(capY - 230, camY)];                  // framed above the capsule so all three canopies fit
   window.CAM = [C2[0], C2[1] - 80 / z, z];
   scr();
   const sky = c.createLinearGradient(0, 0, 0, H);
@@ -502,7 +508,8 @@ function shotG(t) {
   c.fillStyle = sky; c.fillRect(0, 0, W, H);
   cam(C2[0] * .3, (C2[1] - 80 / z) * .3, 1 + (z - 1) * .3);
   glow(-500, 330, 520, '#ffc27a', .55); circle(-500, 330, 70, '#ffe2b0');
-  for (let i = 0; i < 6; i++) { const x = -1600 + i * 620 + fl(i, t, 20, .2), y = -300 + hash(i + 400) * 400; rr(x, y, 300 + hash(i) * 200, 46, 23, 'rgba(255,230,210,.35)'); rr(x + 60, y - 30, 180, 46, 23, 'rgba(255,230,210,.3)'); }
+  const ta = 1 - .85 * inv(B.title - .6, B.title, t);            // clouds clear away from the end-card type
+  for (let i = 0; i < 6; i++) { const x = -1600 + i * 620 + fl(i, t, 20, .2), y = -300 + hash(i + 400) * 400, a = x < 200 && y < 0 ? ta : 1; rr(x, y, 300 + hash(i) * 200, 46, 23, `rgba(255,230,210,${.35 * a})`); rr(x + 60, y - 30, 180, 46, 23, `rgba(255,230,210,${.3 * a})`); }
   cam(C2[0], C2[1] - 80 / z, z);
   // ocean
   c.fillStyle = '#16488f'; c.fillRect(-4000, 340, 8000, 3000);

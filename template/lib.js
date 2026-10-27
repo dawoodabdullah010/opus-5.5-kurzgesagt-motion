@@ -117,7 +117,7 @@ function planet(t, x, y, R, wedge) {
   }
   for (let i = 0; i < 5; i++) {
     const bx = x - R * 1.4 + ((hash(i + 80) * R * 2.8 + rot * 1.4) % (R * 2.8)), by = y + (hash(i + 81) - .5) * R * 1.5;
-    rr(bx - R * .25, by - R * .04, R * .5, R * .09, R * .045, 'rgba(234,245,238,.85)');
+    for (const [dx, dy, rr2] of [[-.14, .01, .07], [0, -.02, .09], [.13, .01, .065], [.05, .03, .06]]) circle(bx + dx * R, by + dy * R, rr2 * R, 'rgba(234,245,238,.85)');   // puffy cloud
   }
   const sh = c.createLinearGradient(x - R, y, x + R, y);   // lit from the young sun on the left
   sh.addColorStop(0, 'rgba(10,8,53,0)'); sh.addColorStop(.55, 'rgba(10,8,53,.1)'); sh.addColorStop(1, 'rgba(10,8,53,.78)');
