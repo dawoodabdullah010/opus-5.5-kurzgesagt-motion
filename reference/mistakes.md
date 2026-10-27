@@ -35,3 +35,9 @@ Caught by: **D** the director, **C** a critic agent, **B** the builder's own mea
 | K29 | C | Items half off-screen, square and round never in frame together | A slow sideways drift accumulated over a 19 s shot | Creep with zoom, not with an unbounded pan; check framing at every key, at the end of each move |
 | K30 | C | Frost drawn as four-point sparkles read as stars indoors; crystal strokes read as bird footprints | Decoration borrowed from another scene | A visual means one thing in a film; frost is an edge haze |
 | K31 | B | 0.1-0.5 alternating frame differences on a slow cabin push | Sub-pixel camera steps on sharp lines | Not a defect below d 1.5; do not chase it |
+| K32 | B | Cabin subjects cropped late in a 19 s shot | A "never parks" creep multiplied over the whole shot (35 % past every planned framing) | Creep belongs in the keys, never as a global multiplier over a long shot |
+| K33 | C | The camera stopped at every key, then zoomed in and out five times | Piecewise eases between keys | One monotone spline through the keys (craft 3.7); zoom only ever pushes in during a scene |
+| K34 | C | Labels popped off at cuts again, after K8 and K26 | Each fix covered the labels in the note, not every label | Every label fades before every cut and before its object moves |
+| K35 | C | Parachutes shrank to dots with lines left standing | An exit drawn as "scale to zero" | Things leave the way they would: deflate, settle, drift |
+| K36 | B | A 5 px crop no still sheet showed | Framing checked by eye | `tools/framecheck.py` on the layout boxes and every camera key |
+| K37 | C | The payoff ("IT WORKS") was on screen 0.25 s while the setup had seconds | The next line followed the payoff by 0.8 s | Give the payoff room: a short pause in the narration after it (edit the audio, never its speed) and assemble the payoff ON its word |

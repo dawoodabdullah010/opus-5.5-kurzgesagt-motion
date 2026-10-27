@@ -69,17 +69,20 @@ function ship(t, x, y, s, rot, o = {}) {
 // a capsule under parachutes (ocean shot): local units, capsule ~120 wide at s = 1
 function capsule(x, y, s, sway, chutes) {
   c.save(); c.translate(x, y); c.rotate(sway); c.scale(s, s);
-  if (chutes > 0) {
-    const cols = [['#ff8f4a', '#fff4e8'], ['#fff4e8', '#ff8f4a'], ['#ff8f4a', '#fff4e8']];
-    [-230, 0, 230].forEach((dx, i) => {
-      const cy = -470 - (i === 1 ? 50 : 0), r = 150 * chutes;
-      c.strokeStyle = 'rgba(230,235,245,.55)'; c.lineWidth = 2.5;
+  if (chutes > 0) {                                             // after splashdown the canopies deflate and settle on the water
+    const dfl = 1 - chutes, cols = [['#ff8f4a', '#fff4e8'], ['#fff4e8', '#ff8f4a'], ['#ff8f4a', '#fff4e8']];
+    c.save(); c.rotate(-sway);                                   // canopies don't follow the capsule's sway once it is floating
+    [-230, 0, 230].forEach((dx0, i) => {
+      const r = 150, dx = dx0 * (1 + .9 * dfl), cy = lerp(-470 - (i === 1 ? 50 : 0), 30, eo(clamp(dfl * 1.5))), flat = lerp(.62, .14, ss(clamp((dfl - .45) / .55)));
+      c.globalAlpha = 1 - inv(.55, 1, dfl);
+      c.strokeStyle = rgba('#e6ebf5', .55 * (1 - ss(clamp(dfl * 2)))); c.lineWidth = 2.5;
       for (const k of [-.9, -.3, .3, .9]) { c.beginPath(); c.moveTo(dx + k * r, cy); c.lineTo(0, -70); c.stroke(); }
-      c.save(); c.beginPath(); c.ellipse(dx, cy, r, r * .62, 0, Math.PI, TAU); c.closePath(); c.clip();
+      c.save(); c.beginPath(); c.ellipse(dx, cy, r, r * flat, 0, Math.PI, TAU); c.closePath(); c.clip();
       for (let k = 0; k < 6; k++) { c.fillStyle = cols[i][k % 2]; c.beginPath(); c.moveTo(dx, cy); c.arc(dx, cy, r + 2, Math.PI + k * Math.PI / 6, Math.PI + (k + 1) * Math.PI / 6); c.fill(); }
       c.restore();
       ell(dx, cy, r, r * .1, 0, 'rgba(120,40,20,.35)');
     });
+    c.restore(); c.globalAlpha = 1;
   }
   c.fillStyle = '#e6ebf0'; c.beginPath(); c.moveTo(-60, 40); c.lineTo(-18, -56); c.quadraticCurveTo(0, -68, 18, -56); c.lineTo(60, 40); c.closePath(); c.fill();
   c.fillStyle = '#b8c1cc'; c.beginPath(); c.moveTo(10, -58); c.quadraticCurveTo(18, -56, 20, -52); c.lineTo(60, 40); c.lineTo(22, 40); c.closePath(); c.fill();
@@ -96,6 +99,23 @@ function helmet(x, y, r, look = 0) {
 
 function label(x, y, text, size, t0, bg = 'rgba(6,20,40,.78)', fg = '#eaf5ee', alpha = 1) { pill(x, y, text, size, bg, fg, t0, 1, alpha); }
 
+// monotone cubic spline through [t, v] keys: no overshoot, no stop at every key (craft 3.7)
+function sk(F, K) {
+  const n = K.length;
+  if (F <= K[0][0]) return K[0][1];
+  if (F >= K[n - 1][0]) return K[n - 1][1];
+  const h = [], d = [];
+  for (let i = 0; i < n - 1; i++) { h[i] = K[i + 1][0] - K[i][0]; d[i] = (K[i + 1][1] - K[i][1]) / h[i]; }
+  const m = [d[0]];
+  for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : 3 * (h[i - 1] + h[i]) / ((2 * h[i] + h[i - 1]) / d[i - 1] + (h[i] + 2 * h[i - 1]) / d[i]);
+  m[n - 1] = d[n - 2];
+  let i = 0; while (F > K[i + 1][0]) i++;
+  const q = (F - K[i][0]) / h[i], q2 = q * q, q3 = q2 * q;
+  return (2 * q3 - 3 * q2 + 1) * K[i][1] + (q3 - 2 * q2 + q) * h[i] * m[i] + (-2 * q3 + 3 * q2) * K[i + 1][1] + (q3 - q2) * h[i] * m[i + 1];
+}
+function splineCam(t, keys) {                                   // keys: [t, cx, cy, z]; one smooth path, log-zoom
+  return [sk(t, keys.map(k => [k[0], k[1]])), sk(t, keys.map(k => [k[0], k[2]])), Math.exp(sk(t, keys.map(k => [k[0], Math.log(k[3])])))];
+}
 function aimCam(t, keys) {                                      // keys: [t, fx, fy, z]; straight log-zoom moves between keys
   let k = 0; while (k < keys.length - 2 && t >= keys[k + 1][0]) k++;
   const [t0, x0, y0, z0] = keys[k], [t1, x1, y1, z1] = keys[Math.min(k + 1, keys.length - 1)];
@@ -129,14 +149,15 @@ function shotA(t) {
   window.CAM = [cx, cy, z];
   spaceBg(t, cx, cy, z); cam(cx, cy, z);
   earth(t, EARTH[0], EARTH[1], 300); moon(MOON[0], MOON[1], 210);
-  c.setLineDash([14, 16]); c.strokeStyle = 'rgba(234,245,238,.28)'; c.lineWidth = 4 / z * 1.5;
+  const fa = 1 - inv(B.cut1 - .4, B.cut1 - .06, t);              // everything that does not cross the cut fades out first
+  c.setLineDash([14, 16]); c.strokeStyle = rgba('#eaf5ee', .28 * fa); c.lineWidth = 4 / z * 1.5;
   c.beginPath(); c.moveTo(EARTH[0] + 300, EARTH[1]); c.quadraticCurveTo(0, -60, MOON[0] - 230, MOON[1] + 10); c.stroke(); c.setLineDash([]);
-  glow(sx, sy, 60, '#9fd8ff', .25);
+  glow(sx, sy, 60, '#9fd8ff', .25 * fa);
   ship(t, sx, sy, .16, -.05);
   scr();
-  label(330, 150, 'APRIL 13, 1970', 34, t - B.april);
+  label(330, 150, 'APRIL 13, 1970', 34, t - B.april, undefined, undefined, fa);
   const mi = Math.round(200000 * EA((t - B.miles) * 30, .2));
-  if (t > B.miles) label(1560, 150, `${mi.toLocaleString('en-US')} MILES FROM EARTH`, 30, t - B.miles, 'rgba(6,20,40,.78)', '#ffd98a');
+  if (t > B.miles) label(1560, 150, `${mi.toLocaleString('en-US')} MILES FROM EARTH`, 30, t - B.miles, 'rgba(6,20,40,.78)', '#ffd98a', fa);
   vignette(.6);
 }
 
@@ -218,11 +239,12 @@ function shotC(t) {
   let tip = null;
   if (t > B.goal) {
     const q = eio(inv(B.goal, B.home + .7, t)), N = 120;
-    c.setLineDash([16, 14]); c.strokeStyle = 'rgba(115,221,158,.95)'; c.lineWidth = 6 / Math.max(1, z * .8); c.beginPath();
+    const pa = 1 - inv(B.lander - 1.1, B.lander - .7, t);
+    c.setLineDash([16, 14]); c.strokeStyle = rgba('#73dd9e', .95 * pa); c.lineWidth = 6 / Math.max(1, z * .8); c.beginPath();
     for (let i = 0; i <= N * q; i++) { const [px, py] = wayHome(i / N); i ? c.lineTo(px, py) : c.moveTo(px, py); }
     c.stroke(); c.setLineDash([]);
     const [ax, ay] = wayHome(q), [bx, by] = wayHome(Math.max(0, q - .01)), ang = Math.atan2(ay - by, ax - bx);
-    c.save(); c.translate(ax, ay); c.rotate(ang); c.fillStyle = '#73dd9e'; c.beginPath(); c.moveTo(22, 0); c.lineTo(-12, -14); c.lineTo(-12, 14); c.closePath(); c.fill(); c.restore();
+    c.save(); c.translate(ax, ay); c.rotate(ang); c.fillStyle = rgba('#73dd9e', pa); c.beginPath(); c.moveTo(22, 0); c.lineTo(-12, -14); c.lineTo(-12, 14); c.closePath(); c.fill(); c.restore();
     tip = [ax, ay];
   }
   const rotC = SHIPROT_C;
@@ -311,45 +333,75 @@ function shotD(t) {
   c.restore();
   c.strokeStyle = '#8f98a6'; c.lineWidth = 8; c.beginPath(); c.moveTo(-210, -60); c.lineTo(-225, -150); c.lineTo(-140, -280); c.lineTo(140, -280); c.lineTo(220, -160); c.lineTo(210, -60); c.closePath(); c.stroke();
   scr();
-  label(1480, 360, 'BUILT FOR', 32, t - B.built, 'rgba(6,20,40,.8)', '#8fd8e6');
-  label(1480, 450, '2 PEOPLE · 2 DAYS', 52, t - B.built - .12);
-  label(1480, 610, 'NOW', 32, t - B.three, 'rgba(60,10,10,.85)', '#ff9a7a');
-  label(1480, 700, '3 PEOPLE · 4 DAYS', 52, t - B.three - .12, '#d8433f', '#fff4e8');
+  const da = 1 - inv(B.cut4 - .4, B.cut4 - .06, t);              // fade out before the cut
+  label(1480, 360, 'BUILT FOR', 32, t - B.built, 'rgba(6,20,40,.8)', '#8fd8e6', da);
+  label(1480, 450, '2 PEOPLE · 2 DAYS', 52, t - B.built - .12, undefined, undefined, da);
+  label(1480, 610, 'NOW', 32, t - B.three, 'rgba(60,10,10,.85)', '#ff9a7a', da);
+  label(1480, 700, '3 PEOPLE · 4 DAYS', 52, t - B.three - .12, '#d8433f', '#fff4e8', da);
   vignette(.6);
 }
 
 // ---------- shot E: the cabin. Power down, the cold, the poisoned air, and the fix ----------
-const PANEL = [-760, -120], THERMO = [-330, -250], LAMP = [-60, -300], PORT = [760, 150], FILTER0 = [180, 150];
+const PANEL = [-700, -150], THERMO = [-320, -170], LAMP = [-60, -280], PORT = [640, 170], FILTER0 = [190, 170], BOX = [400, 170];
 function shotE(t) {
   const u = t - B.cut4;
-  const keys = [[B.cut4, -420, -60, .86], [B.cut4 + 1.5, -420, -60, .95],          // enters from rest (zero across the cut)
-    [B.cabin - .3, -420, -60, .98], [B.cabin + 1.0, THERMO[0] + 60, THERMO[1] + 170, 1.08],
-    [B.breath - .5, THERMO[0] + 70, THERMO[1] + 170, 1.12], [B.breath + .8, -40, 0, .9],
-    [B.square - .6, -20, 0, .92], [B.square + .5, 420, 30, .86],
-    [B.builds - .3, 420, 20, .88], [B.builds + 1.0, 450, -10, .84],
-    [B.works + .25, 450, 20, .9]];
-  let [cx, cy, z] = aimCam(t, keys);
-  z *= Math.exp(.03 * u);                                        // never parks: a creep, no sideways drift
+  // every key frames all of its subjects (checked against the layout: x -900..900, y -380..360)
+  // one smooth spline through framings that each hold all their subjects (layout x -900..900, y -380..360);
+  // every key is a little tighter than the one before it, so the camera never parks and never stops at a key
+  const keys = [[B.cut4, -250, -30, .86], [B.cut4 + 1.2, -250, -32, .875],
+    [B.cabin, -240, -40, .9], [B.freezing + .3, -230, -40, .93],
+    [B.breath, -200, -35, .945], [B.toxic + .4, -120, -20, .955],
+    [B.square - .3, 0, -10, .95], [B.round_ + .2, 35, 10, .97],
+    [B.builds, 160, -10, 1.02], [B.tape, 120, -30, 1.07],
+    [B.works + .6, 135, 30, 1.13], [B.cut5, 140, 40, 1.16]];     // crew stays whole; the panel is clearly cropped       // the panel is whole or clearly cropped, never a near-miss      // a steady push onto the fix (~3 %/s); the panel leaves the frame on purpose         // zoom only ever pushes in
+  let [cx, cy, z] = splineCam(t, keys);
   const w = clamp((t - (B.cut5 - .55)) / .55);
   if (w > 0) z *= lz(1, .45, Math.pow(w, 2.2));                  // pulls back, accelerating into the cut
   window.CAM = [cx, cy, z];
   scr();
-  const dark = .22 * eo(inv(B.shut, B.shut + 1.6, t));
+  const dark = 0;                                                 // the lights going off carry the power-down; no muddy dimming layer
   const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2f5f92'); g.addColorStop(1, '#173a66');
   c.fillStyle = g; c.fillRect(0, 0, W, H);
   cam(cx, cy, z);
   // wall structure
-  for (let i = -3; i <= 3; i++) rr(i * 520 - 30, -900, 60, 1800, 8, 'rgba(10,20,40,.35)');
-  rr(-1400, 330, 2800, 40, 8, 'rgba(10,20,40,.4)');
+  for (let i = -7; i <= 7; i++) rr(i * 520 - 30, -2400, 60, 4800, 8, 'rgba(10,20,40,.35)');
+  rr(-4000, 345, 8000, 40, 8, 'rgba(10,20,40,.4)'); c.fillStyle = 'rgba(10,20,40,.18)'; c.fillRect(-4000, 385, 8000, 2400);
   // control panel: lights switch off in a wave on "shut almost everything down"
-  rr(PANEL[0] - 330, PANEL[1] - 220, 660, 440, 26, '#8fa3bf'); rr(PANEL[0] - 310, PANEL[1] - 200, 620, 400, 18, '#1b2a45');
-  for (let r = 0; r < 6; r++) for (let k = 0; k < 10; k++) {
-    const x = PANEL[0] - 270 + k * 60, y = PANEL[1] - 160 + r * 62;
+  rr(PANEL[0] - 230, PANEL[1] - 170, 460, 340, 26, '#8fa3bf'); rr(PANEL[0] - 212, PANEL[1] - 152, 424, 304, 18, '#1b2a45');
+  for (let r = 0; r < 5; r++) for (let k = 0; k < 8; k++) {
+    const x = PANEL[0] - 175 + k * 50, y = PANEL[1] - 116 + r * 58;
     const off = ss(inv(B.shut + k * .09 + r * .03, B.shut + k * .09 + r * .03 + .35, t));   // each light dims over 0.35 s
     const col = (r + k) % 3 === 0 ? '#ffb347' : (r + k) % 3 === 1 ? '#73dd9e' : '#6fd3ff';
     const on = 1 - off * (k % 7 === 3 && r === 2 ? 0 : 1);       // one light stays on
-    circle(x, y, 13, '#141d30');
-    if (on > .01) { glow(x, y, 34, col, .5 * on); circle(x, y, 9, rgba(col, on)); }
+    circle(x, y, 12, '#141d30');
+    if (on > .01) { glow(x, y, 30, col, .5 * on); circle(x, y, 8, rgba(col, on)); }
+  }
+  // the crew, standing, breathing: the CO2 comes from them
+  const CREW = [[-620, 250], [-470, 262], [-320, 250]];
+  for (const [x, y] of CREW) {
+    c.save(); c.translate(x, y + 2 * Math.sin(t * 1.6 + x)); c.scale(.9, .9);
+    rr(-46, -10, 92, 120, 30, '#e6ebf0'); rr(-46, 60, 92, 50, 20, '#c9d1db'); rr(-20, 10, 40, 26, 6, '#8f98a6');
+    cap([-44, 10, -66, 80], 26, '#d9e1ea'); cap([44, 10, 66, 80], 26, '#d9e1ea'); helmet(0, -46, 40, .4);
+    c.restore();
+  }
+  // CO2: molecules that build up from "breath", sucked into the box on "it works"
+  if (t > B.breath) {
+    const n = Math.floor(24 * clamp((t - B.breath) / 3));
+    const suck = eio(inv(B.works + .3, B.works + .7, t));             // the fix pulls the CO2 out
+    for (let i = 0; i < 24; i++) {
+      if (i >= n && suck <= 0) continue;
+      const born = B.breath + i / 24 * 3, age = t - born;
+      if (age < 0) continue;
+      const [bx, by] = CREW[i % 3], dr = Math.min(age, 2.5);       // exhaled from a helmet, then drifting up and out
+    const tx = -200 + 480 * hash(i + 200), ty = -190 + 200 * hash(i + 201), k2 = eo(clamp(age / 1.6));   // rest region: right of the thermometer, under the lamp
+      let x = lerp(bx, tx, k2) + fl(i, t, 18, .7), y = lerp(by - 70, ty, k2) - 40 * Math.sin(k2 * Math.PI) + fl(i + 9, t, 12, .9);
+      x = lerp(x, BOX[0], suck); y = lerp(y, BOX[1], suck);
+      const s = SS(age * 30) * (1 - suck);
+      if (s <= .01) continue;
+      c.save(); c.translate(x, y); c.scale(s, s); c.rotate(hash(i) * 3 + t * .3);
+      circle(-24, 0, 16, '#0f1a2e'); circle(24, 0, 16, '#0f1a2e'); circle(-22, 0, 13, '#eef2f8'); circle(22, 0, 13, '#eef2f8'); circle(0, 0, 19, '#0f1a2e'); circle(0, 0, 16, '#ff7a4a'); circle(-5, -5, 4, 'rgba(255,255,255,.45)');   // O=C=O, high contrast
+      c.restore();
+    }
   }
   // thermometer
   rr(THERMO[0] - 34, THERMO[1] - 150, 68, 300, 34, '#e6ebf0'); rr(THERMO[0] - 16, THERMO[1] - 130, 32, 250, 16, '#20304d');
@@ -358,25 +410,42 @@ function shotE(t) {
   rr(THERMO[0] - 16, THERMO[1] + 120 - 250 * lvl, 32, 250 * lvl, 16, temp > 50 ? '#ff7a4a' : '#6fd3ff');
   circle(THERMO[0], THERMO[1] + 150, 44, '#e6ebf0'); circle(THERMO[0], THERMO[1] + 150, 32, temp > 50 ? '#ff7a4a' : '#6fd3ff');
   // CO2 warning lamp
-  const toxic = t > B.toxic, fixed = t > B.works + .2, lampIn = clamp((t - B.toxic) * 8);
+  const toxic = t > B.toxic, fx_k = ss(inv(B.works + .6, B.works + .7, t)), fixed = fx_k >= 1, lampIn = clamp((t - B.toxic) * 8);   // red to green over 6 frames
   rr(LAMP[0] - 110, LAMP[1] - 60, 220, 120, 24, '#8fa3bf');
-  const blink = toxic && !fixed ? (.55 + .45 * Math.sin((t - B.toxic) * 9)) * lampIn : 0;
-  const lampCol = fixed ? '#73dd9e' : '#ff5a3d';
-  if (toxic) glow(LAMP[0], LAMP[1], 200, lampCol, fixed ? .45 : .5 * blink);
-  rr(LAMP[0] - 90, LAMP[1] - 42, 180, 84, 18, '#3a2830'); if (toxic) rr(LAMP[0] - 90, LAMP[1] - 42, 180, 84, 18, rgba(lampCol, (fixed ? 1 : .55 + .45 * blink) * lampIn));
+  const blink = toxic ? (.55 + .45 * Math.sin((t - B.toxic) * 9)) * lampIn * (1 - fx_k) + fx_k : 0;
+  const lampCol = fx_k > .5 ? '#73dd9e' : '#ff5a3d';
+  if (toxic) { glow(LAMP[0], LAMP[1], 200, '#ff5a3d', .5 * blink * (1 - fx_k)); glow(LAMP[0], LAMP[1], 200, '#73dd9e', .45 * fx_k); }
+  rr(LAMP[0] - 90, LAMP[1] - 42, 180, 84, 18, '#3a2830'); if (toxic) { rr(LAMP[0] - 90, LAMP[1] - 42, 180, 84, 18, rgba('#ff5a3d', (.55 + .45 * blink) * lampIn * (1 - fx_k))); rr(LAMP[0] - 90, LAMP[1] - 42, 180, 84, 18, rgba('#73dd9e', fx_k)); }
   c.fillStyle = toxic ? '#1a0c10' : '#5a4048'; c.font = '700 44px Fredoka'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.letterSpacing = '2px';
   c.fillText('CO₂', LAMP[0], LAMP[1] + 3);
   // the round hole (the lunar module's air system)
   circle(PORT[0], PORT[1], 120, '#8fa3bf'); circle(PORT[0], PORT[1], 84, '#0c1424'); circle(PORT[0], PORT[1], 84 * .82, '#121c30');
   if (t > B.round_ - .1) { const k = SS((t - B.round_ + .1) * 30); c.strokeStyle = rgba('#ffd98a', k); c.lineWidth = 6; c.beginPath(); c.arc(PORT[0], PORT[1], 100 + 10 * (1 - k), 0, TAU); c.stroke(); }
+  // on-board items, popping in one by one
+  const items = [['cover', B.cover, 190], ['bag', B.bags, 390], ['tape', B.tape, 580], ['sock', B.sock, 770]];
+  const asmAll = inv(B.works - .3, B.works + .4, t);             // the fix comes together ON "It works"
+  for (const [n, t0, ix] of items) {
+    const k_ = items.findIndex(q => q[0] === n), asmI = eio(clamp((asmAll - k_ * .12) / .64));   // one after another
+    if (t < t0 - .05 || asmI >= 1) continue;
+    const a = SS((t - t0 + .05) * 30), x = lerp(ix, BOX[0], asmI), y = lerp(-170 + (1 - a) * 20, BOX[1], asmI), s = lerp(.94, 1, a) * (1 - asmI * .85);
+    c.save(); c.translate(x, y); c.scale(s, s); c.globalAlpha = clamp((t - t0 + .05) * 10);   // solid while flying in: no ghosting
+    if (n === 'cover') { rr(-70, -90, 140, 180, 8, '#cfe6ff'); rr(-70, -90, 140, 34, 8, '#6fa8dc'); for (let k = 0; k < 4; k++) rr(-50, -30 + k * 26, 100 - k * 12, 10, 5, '#7a9cc4'); }
+    if (n === 'bag') { c.strokeStyle = 'rgba(225,240,255,.95)'; c.lineWidth = 12; for (const hx2 of [-34, 34]) { c.beginPath(); c.arc(hx2, -52, 22, Math.PI, TAU); c.stroke(); } c.fillStyle = 'rgba(225,240,255,.93)'; c.beginPath(); c.moveTo(-70, -54); c.lineTo(70, -54); c.lineTo(82, 70); c.quadraticCurveTo(84, 90, 62, 90); c.lineTo(-62, 90); c.quadraticCurveTo(-84, 90, -82, 70); c.closePath(); c.fill(); for (const k of [-10, 30]) cap([-50, k, 46, k + 10], 3, 'rgba(120,150,190,.45)'); ell(-46, 22, 9, 34, .2, 'rgba(255,255,255,1)'); }   // a carrier bag with handles
+    if (n === 'tape') { circle(0, 0, 70, '#9aa2ae'); circle(0, 0, 34, '#1d2f4f'); circle(-14, -14, 20, 'rgba(255,255,255,.18)'); rr(40, 40, 70, 22, 4, '#9aa2ae'); }
+    if (n === 'sock') { c.fillStyle = '#eef2f6'; c.beginPath(); c.moveTo(-30, -80); c.lineTo(20, -80); c.lineTo(20, 20); c.quadraticCurveTo(70, 30, 70, 60); c.quadraticCurveTo(70, 90, 20, 90); c.lineTo(-10, 90); c.quadraticCurveTo(-30, 90, -30, 60); c.closePath(); c.fill(); rr(-34, -86, 58, 24, 8, '#c9d1db'); }
+    c.restore();
+    const names = { cover: 'FLIGHT-PLAN COVER', bag: 'BAG', tape: 'DUCT TAPE', sock: 'SOCK' };
+    const ia = 1 - clamp(asmI * 5);                                // each label leaves as its item starts to fly
+    if (ia > 0) { const [px, py] = [W / 2 + (ix - cx) * z, H / 2 + (-170 - 125 - cy) * z]; c.save(); scr(); label(px, py, names[n], 22, t - t0 - .05, undefined, undefined, ia); c.restore(); cam(cx, cy, z); }
+  }
   // the square filter: arrives on "square", tries the round hole and stops dead, then the fix
   if (t > B.square - .05) {
     const a = SS((t - B.square + .05) * 30);
     let fx = FILTER0[0], fy = FILTER0[1] + (1 - a) * 30;
     const tryP = inv(B.round_ + .35, B.round_ + .75, t), back = inv(B.round_ + .75, B.round_ + 1.1, t);
-    fx += 380 * eio(tryP) - 120 * eo(back) * 1;                  // slides at the hole, hits the rim, bounces back
-    const asm = eio(inv(B.works - .35, B.works + .25, t));
-    fx = lerp(fx, 470, asm); fy = lerp(fy, 150, asm);
+    fx += 270 * eio(tryP) - 100 * eo(back);                        // hits the rim of the round hole, bounces back                  // slides at the hole, hits the rim, bounces back
+    const asm = eio(inv(B.works + .05, B.works + .55, t));
+    fx = lerp(fx, BOX[0], asm); fy = lerp(fy, BOX[1], asm);
     c.save(); c.globalAlpha = clamp((t - B.square + .05) * 10);
     if (asm > 0) {                                               // hose from the box to the round hole
       c.strokeStyle = '#8f98a6'; c.lineWidth = 46 * asm; c.lineCap = 'round'; c.beginPath(); c.moveTo(fx + 90, fy); c.lineTo(PORT[0], PORT[1]); c.stroke();
@@ -384,54 +453,13 @@ function shotE(t) {
     }
     rr(fx - 110, fy - 110, 220, 220, 16, '#cfd6df'); rr(fx - 110, fy + 40, 220, 70, 16, '#a7b0bd');
     for (let i = 0; i < 5; i++) rr(fx - 85, fy - 80 + i * 32, 170, 12, 6, '#7d8796');
-    if (t > B.works - .1) {                                       // bag over the box, tape across it, cover as a stiffener (snap in)
-      const sp = SS((t - B.works + .1) * 30); c.save(); c.translate(fx, fy); c.scale(lerp(.94, 1, sp), lerp(.94, 1, sp));
+    if (t > B.works + .3) {                                       // bag over the box, tape across it, cover as a stiffener (grow in)
+      const sp = SS((t - B.works - .3) * 30 / 2); c.save(); c.translate(fx, fy); c.scale(lerp(.3, 1, sp), lerp(.3, 1, sp)); c.globalAlpha = clamp((t - B.works - .3) * 10);   // grows in over ~10 frames
       rr(-128, -128, 256, 256, 30, 'rgba(235,246,255,.35)');
       for (const k of [-60, 60]) rr(-140, k - 14, 280, 28, 4, '#9aa2ae');
       rr(-128, -150, 256, 40, 8, '#6fa8dc'); c.restore();
     }
     c.restore();
-  }
-  // the crew, standing, breathing: the CO2 comes from them
-  const CREW = [[-560, 250], [-400, 262], [-240, 250]];
-  for (const [x, y] of CREW) {
-    c.save(); c.translate(x, y + 2 * Math.sin(t * 1.6 + x)); c.scale(.9, .9);
-    rr(-46, -10, 92, 120, 30, '#e6ebf0'); rr(-46, 60, 92, 50, 20, '#c9d1db'); rr(-20, 10, 40, 26, 6, '#8f98a6');
-    cap([-44, 10, -66, 80], 26, '#d9e1ea'); cap([44, 10, 66, 80], 26, '#d9e1ea'); helmet(0, -46, 40, .4);
-    c.restore();
-  }
-  // on-board items, popping in one by one
-  const items = [['cover', B.cover, 200], ['bag', B.bags, 390], ['tape', B.tape, 570], ['sock', B.sock, 740]];
-  const asmI = eio(inv(B.works - .35, B.works + .1, t));
-  for (const [n, t0, ix] of items) {
-    if (t < t0 - .05 || asmI >= 1) continue;
-    const a = SS((t - t0 + .05) * 30), x = lerp(ix, 470, asmI), y = lerp(-150 + (1 - a) * 20, 150, asmI), s = lerp(.94, 1, a) * (1 - asmI * .85);
-    c.save(); c.translate(x, y); c.scale(s, s); c.globalAlpha = clamp((t - t0 + .05) * 10);   // solid while flying in: no ghosting
-    if (n === 'cover') { rr(-70, -90, 140, 180, 8, '#cfe6ff'); rr(-70, -90, 140, 34, 8, '#6fa8dc'); for (let k = 0; k < 4; k++) rr(-50, -30 + k * 26, 100 - k * 12, 10, 5, '#7a9cc4'); }
-    if (n === 'bag') { c.fillStyle = 'rgba(235,246,255,.92)'; c.beginPath(); c.moveTo(-28, -80); c.lineTo(28, -80); c.lineTo(78, 70); c.quadraticCurveTo(80, 92, 58, 92); c.lineTo(-58, 92); c.quadraticCurveTo(-80, 92, -78, 70); c.closePath(); c.fill(); rr(-34, -92, 68, 18, 8, '#9aa2ae'); ell(-30, 20, 16, 40, .2, 'rgba(255,255,255,.8)'); }
-    if (n === 'tape') { circle(0, 0, 70, '#9aa2ae'); circle(0, 0, 34, '#1d2f4f'); circle(-14, -14, 20, 'rgba(255,255,255,.18)'); rr(40, 40, 70, 22, 4, '#9aa2ae'); }
-    if (n === 'sock') { c.fillStyle = '#eef2f6'; c.beginPath(); c.moveTo(-30, -80); c.lineTo(20, -80); c.lineTo(20, 20); c.quadraticCurveTo(70, 30, 70, 60); c.quadraticCurveTo(70, 90, 20, 90); c.lineTo(-10, 90); c.quadraticCurveTo(-30, 90, -30, 60); c.closePath(); c.fill(); rr(-34, -86, 58, 24, 8, '#c9d1db'); }
-    c.restore();
-    const names = { cover: 'FLIGHT-PLAN COVER', bag: 'BAG', tape: 'DUCT TAPE', sock: 'SOCK' };
-    if (asmI <= 0) { const [px, py] = [W / 2 + (ix - cx) * z, H / 2 + (-150 - 125 - cy) * z]; c.save(); scr(); label(px, py, names[n], 24, t - t0 - .05); c.restore(); cam(cx, cy, z); }
-  }
-  // CO2: molecules that build up from "breath", sucked into the box on "it works"
-  if (t > B.breath) {
-    const n = Math.floor(34 * clamp((t - B.breath) / 3));
-    const suck = eio(inv(B.works - .1, B.works + .5, t));            // cleared quickly on "It works"
-    for (let i = 0; i < 34; i++) {
-      if (i >= n && suck <= 0) continue;
-      const born = B.breath + i / 34 * 3, age = t - born;
-      if (age < 0) continue;
-      const [bx, by] = CREW[i % 3], dr = Math.min(age, 2.5);       // exhaled from a helmet, then drifting up and out
-    let x = bx + 40 + dr * (60 + 120 * hash(i + 200)) * (hash(i + 202) > .5 ? 1 : -.4) + fl(i, t, 20, .7), y = by - 60 - dr * (90 + 80 * hash(i + 201)) + fl(i + 9, t, 15, .9);
-      x = lerp(x, 470, suck); y = lerp(y, 150, suck);
-      const s = SS(age * 30) * (1 - suck);
-      if (s <= .01) continue;
-      c.save(); c.translate(x, y); c.scale(s, s); c.rotate(hash(i) * 3 + t * .3);
-      circle(-22, 0, 14, '#c9cfdb'); circle(22, 0, 14, '#c9cfdb'); circle(0, 0, 18, '#3b3f4c'); circle(-5, -6, 5, 'rgba(255,255,255,.25)');
-      c.restore();
-    }
   }
   // the power-down darkens the whole cabin; frost grows from the edges as it gets cold
   scr();
@@ -445,11 +473,11 @@ function shotE(t) {
   }
   if (t > B.cabin + .1) {
     const [px, py] = [W / 2 + (THERMO[0] - cx) * z, H / 2 + (THERMO[1] + 240 - cy) * z];   
-    label(px, py, `${Math.round(temp)}°F`, 46, t - B.cabin - .1, 'rgba(6,20,40,.82)', temp > 50 ? '#ffb08a' : '#bfe9ff');
+    label(px, py, `${Math.round(temp)}°F`, 46, t - B.cabin - .1, 'rgba(6,20,40,.82)', temp > 50 ? '#ffb08a' : '#bfe9ff', 1 - inv(B.cut5 - .7, B.cut5 - .45, t));
   }
-  if (t > B.works) {
-    const [px, py] = [W / 2 + (470 - cx) * z, H / 2 + (150 - 210 - cy) * z];
-    label(px, py - 70, 'IT WORKS', 60, t - B.works - .1, '#2f9e5f', '#eaf5ee');
+  if (t > B.works + .55) {
+    const [px, py] = [W / 2 + (BOX[0] - cx) * z, H / 2 + (BOX[1] - 210 - cy) * z];
+    label(px, py - 70, 'IT WORKS', 60, t - B.works - .55, '#2f9e5f', '#eaf5ee', 1 - inv(B.cut5 - .3, B.cut5 - .12, t));   // >= 0.6 s at full
   }
   vignette(.6);
 }
@@ -457,14 +485,14 @@ function shotE(t) {
 // ---------- shot F: round the far side of the Moon, farther from Earth than anyone had been ----------
 function shipPathF(t) {
   const s = clamp((t - B.cut5) / (B.cut6 - B.cut5));
-  const ang = -1.1 + s * 3.6, r = 560 + 160 * Math.max(0, s - .55) * 4;
-  return [Math.cos(ang) * r * 1.05 - Math.max(0, s - .62) * 650, Math.sin(ang) * r * .55 - 60, ang];   // stays in frame while it heads home
+  const ang = .4 - s * 3.0, r = 560 + 160 * Math.max(0, s - .55) * 4;
+  return [Math.cos(ang) * r * 1.05 - Math.max(0, s - .62) * 450, Math.sin(ang) * r * .8 - 60, ang];   // outside the Moon's disk in front; behind it over the top   // stays in frame while it heads home
 }
 function shotF(t) {
   const u = t - B.cut5;
   const [sx, sy, ang] = shipPathF(t);
   let z = lz(1.6, .78, EA(u * 30, .1));                          // enters still pulling back (continues E), settles
-  let [cx, cy] = [0, -40];
+  let [cx, cy] = [0, -110];                                       // room above the Moon for the ship's path over the top
   // "and fall back home": the camera locks onto the capsule and pushes in, accelerating to the cut
   z *= Math.exp(.04 * Math.max(0, u - 1.5));                     // a creep; the ship flies out toward Earth, the cut is at rest
   window.CAM = [cx, cy, z];
@@ -479,12 +507,12 @@ function shotF(t) {
   moon(0, 0, 420);
   if (!behind) drawShip();
   scr();
-  if (t > B.fall - .1) { const [px, py] = [W / 2 + (sx - cx) * z, H / 2 + (sy - cy) * z]; label(clamp(px - 40, 260, W - 260), clamp(py - 80, 100, H - 100), '← BACK TO EARTH', 34, t - B.fall + .1, 'rgba(6,40,30,.88)', '#73dd9e'); }
+  if (t > B.fall - .1) { const [px, py] = [W / 2 + (sx - cx) * z, H / 2 + (sy - cy) * z]; label(clamp(px + 40, 260, W - 260), clamp(py + 95, 100, H - 100), '← BACK TO EARTH', 34, t - B.fall + .1, 'rgba(6,40,30,.88)', '#73dd9e', 1 - inv(B.cut6 - .35, B.cut6 - .06, t)); }
   if (t > B.farther) {
     const mi = Math.round(lerp(200000, 248655, eo(clamp((t - B.farther) / 1.1))));
     const fa = 1 - inv(B.fall - .6, B.fall - .2, t);
-    label(960, 140, `${mi.toLocaleString('en-US')} MILES FROM EARTH`, 38, t - B.farther, 'rgba(6,20,40,.82)', '#ffd98a', fa);
-    label(960, 214, 'FARTHER THAN ANY HUMAN HAD EVER BEEN', 28, t - B.farther - .5, 'rgba(6,20,40,.7)', '#8fd8e6', fa);
+    label(430, 92, `${mi.toLocaleString('en-US')} MILES FROM EARTH`, 38, t - B.farther, 'rgba(6,20,40,.82)', '#ffd98a', fa);
+    label(430, 152, 'FARTHER THAN ANY HUMAN HAD EVER BEEN', 28, t - B.farther - .5, 'rgba(6,20,40,.7)', '#8fd8e6', fa);
   }
   vignette(.6);
 }
@@ -508,8 +536,8 @@ function shotG(t) {
   c.fillStyle = sky; c.fillRect(0, 0, W, H);
   cam(C2[0] * .3, (C2[1] - 80 / z) * .3, 1 + (z - 1) * .3);
   glow(-500, 330, 520, '#ffc27a', .55); circle(-500, 330, 70, '#ffe2b0');
-  const ta = 1 - .85 * inv(B.title - .6, B.title, t);            // clouds clear away from the end-card type
-  for (let i = 0; i < 6; i++) { const x = -1600 + i * 620 + fl(i, t, 20, .2), y = -300 + hash(i + 400) * 400, a = x < 200 && y < 0 ? ta : 1; rr(x, y, 300 + hash(i) * 200, 46, 23, `rgba(255,230,210,${.35 * a})`); rr(x + 60, y - 30, 180, 46, 23, `rgba(255,230,210,${.3 * a})`); }
+  const ta = 1 - .95 * inv(B.title - .7, B.title - .1, t);            // clouds clear away from the end-card type
+  for (let i = 0; i < 6; i++) { const x = -1600 + i * 620 + fl(i, t, 20, .2), y = -300 + hash(i + 400) * 400, a = ta; rr(x, y, 300 + hash(i) * 200, 46, 23, `rgba(255,230,210,${.35 * a})`); rr(x + 60, y - 30, 180, 46, 23, `rgba(255,230,210,${.3 * a})`); }
   cam(C2[0], C2[1] - 80 / z, z);
   // ocean
   c.fillStyle = '#16488f'; c.fillRect(-4000, 340, 8000, 3000);
@@ -522,7 +550,7 @@ function shotG(t) {
     for (let i = 0; i < 40; i++) { const a = -Math.PI * (.1 + .8 * hash(i + 600)), sp = 200 + hash(i + 601) * 500, px = capX + Math.cos(a) * sp * k, py = 330 + Math.sin(a) * sp * k + 900 * k * k; if (py > 345) continue; circle(px, py, 6 + hash(i) * 8, 'rgba(234,246,255,.8)'); }
   }
   const bob = t > splash ? Math.sin((t - splash) * 3) * 6 * Math.exp(-(t - splash)) : 0;
-  const chutes = t < splash + .2 ? 1 : Math.max(0, 1 - (t - splash - .2) * 1.5);
+  const chutes = 1 - eo(inv(splash + .1, splash + 1.6, t));       // 1 = open overhead, 0 = settled on the sea and gone
   capsule(capX, Math.min(capY, 300) + bob, 1, .05 * Math.sin(u * 1.3) * (t < splash ? 1 : .3), chutes);
   scr();
   label(330, 150, 'APRIL 17, 1970', 34, t - B.april2);

@@ -11,13 +11,16 @@ Nothing reaches the director until it passes every gate below, in order. Each ga
 - `ls frames | wc -l` = LAST_FRAME + 1. A crashed worker leaves gaps, and gaps make fake jumps and freezes in every later check.
 - Any `PAGE ERROR` or `frame N:` line in the render log is a bug, not noise.
 
+## Gate 2b. Framing
+- `python tools/framecheck.py framing.json`: every subject box inside every camera key by at least 15 px. Run it after every layout or camera change.
+
 ## Gate 3. Motion scan
 `python tools/scan.py frames --cuts <cut frames> --flash <flash frames>`
 
 | Check | Pass |
 |---|---|
 | Gaps | 0 |
-| Frozen runs (3+ identical frames) | 0. Every hold keeps a creep of 3–7 %/s |
+| Frozen runs (3+ identical frames) | 0. Every hold keeps moving: a creep built into the camera keys (never a global multiplier over a long shot, K32) |
 | Jumps (d > 25) | only on planned cuts and 1-frame flashes |
 | Kinks (one-frame spike or dip) | 0 above d 1.5; look at every one below that |
 

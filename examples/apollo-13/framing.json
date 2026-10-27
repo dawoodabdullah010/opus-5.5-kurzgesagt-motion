@@ -1,0 +1,159 @@
+{
+ "margin": 15,
+ "boxes": {
+  "panel": [
+   -930,
+   -320,
+   -470,
+   20
+  ],
+  "thermo": [
+   -354,
+   -320,
+   -276,
+   24
+  ],
+  "lamp": [
+   -170,
+   -340,
+   50,
+   -220
+  ],
+  "port": [
+   520,
+   50,
+   760,
+   290
+  ],
+  "crew": [
+   -700,
+   170,
+   -250,
+   360
+  ],
+  "filter": [
+   80,
+   60,
+   300,
+   280
+  ],
+  "items": [
+   100,
+   -310,
+   860,
+   -80
+  ]
+ },
+ "keys": {
+  "cut4": [
+   -250,
+   -30,
+   0.86,
+   [
+    "panel",
+    "thermo",
+    "lamp",
+    "crew",
+    "port"
+   ]
+  ],
+  "cabin": [
+   -240,
+   -40,
+   0.9,
+   [
+    "panel",
+    "thermo",
+    "lamp",
+    "crew",
+    "port"
+   ]
+  ],
+  "freezing": [
+   -230,
+   -40,
+   0.93,
+   [
+    "thermo",
+    "lamp",
+    "crew",
+    "port"
+   ]
+  ],
+  "breath": [
+   -200,
+   -35,
+   0.945,
+   [
+    "thermo",
+    "lamp",
+    "crew"
+   ]
+  ],
+  "toxic": [
+   -120,
+   -20,
+   0.955,
+   [
+    "thermo",
+    "lamp",
+    "crew"
+   ]
+  ],
+  "square": [
+   0,
+   -10,
+   0.95,
+   [
+    "filter",
+    "port",
+    "crew",
+    "thermo",
+    "lamp"
+   ]
+  ],
+  "round": [
+   35,
+   10,
+   0.97,
+   [
+    "filter",
+    "port"
+   ]
+  ],
+  "builds": [
+   160,
+   -10,
+   1.02,
+   [
+    "filter",
+    "port",
+    "items",
+    "crew"
+   ]
+  ],
+  "tape": [
+   120,
+   -30,
+   1.07,
+   [
+    "filter",
+    "port",
+    "items",
+    "crew"
+   ]
+  ],
+  "works": [
+   135,
+   30,
+   1.13,
+   [
+    "filter",
+    "port",
+    "lamp",
+    "thermo",
+    "crew"
+   ]
+  ]
+ }
+}
