@@ -221,9 +221,9 @@ function shotC(t) {
     [cx, cy] = aim(mx, my, ox * (1 - m) + 300 * m, oy * (1 - m) + 40 * m, z);
   }
   // "They move into the lunar lander": one straight move onto the ship, from the current camera, then a creep
-  const g = eio(inv(B.home + .4, B.lander - .47, t));            // a calm push (~3 %/frame peak), not a whip
+  const g = eio(inv(B.home, B.cut3, t));                         // one calm push all the way to the cut (never parks), close enough to see the crew inside
   if (g > 0) {
-    const zc = z, z2 = 5.2 * Math.exp(.04 * Math.max(0, t - B.lander));
+    const zc = z, z2 = 9 * Math.exp(.04 * Math.max(0, t - B.home));
     const tx = sx + 12, ox = (tx - cx) * zc, oy = (sy - cy) * zc;
     z = lz(zc, z2, g); [cx, cy] = aim(tx, sy, ox * (1 - g), oy * (1 - g), z);
   }
@@ -252,19 +252,35 @@ function shotC(t) {
   vent(t, hx, hy, .1, (1 - .6 * inv(B.cut2, B.cut2 + 3, t)) * (1 - inv(B.cut3 - .5, B.cut3 - .1, t)));   // thinning out; gone before the cut
   glow(sx, sy, 60, '#9fd8ff', .25);
   ship(t, sx, sy, .16, rotC, { hole: true });
-  // the crew moves from the command module into the lander: three helmets along the ship's own axis
-  const lk = eo(inv(B.lander - .9, B.lander - .4, t));
-  const toW = (lx, ly) => [sx + (Math.cos(rotC) * lx - Math.sin(rotC) * ly) * .16, sy + (Math.sin(rotC) * lx + Math.cos(rotC) * ly) * .16];
-  if (lk > 0) { const [gx, gy] = toW(110, 0); glow(gx, gy, 26, '#ffd36b', .35 * lk); }
-  for (let i = 0; i < 3; i++) {                                  // strictly one at a time, during "They move into the lunar lander"
-    const t0 = B.lander - .5 + i * .25;
-    if (t < t0 - .03 || t > t0 + .25) continue;
-    const k = eio(inv(t0, t0 + .24, t));
-    const [ax, ay] = toW(lerp(-6, 104, k), lerp(-58, -26, k) - 22 * Math.sin(k * Math.PI));
-    c.save(); c.translate(ax, ay); c.rotate(rotC + .3 * Math.sin(k * Math.PI)); c.scale(2, 2); c.globalAlpha = clamp((t - t0 + .03) * 20) * (1 - inv(.8, 1, k));
-    rr(-3.2, 1.5, 6.4, 8, 2.6, '#e6ebf0'); cap([-3, 3, -5.5, 7.5], 2.2, '#d9e1ea'); cap([3, 3, 5.5, 7.5], 2.2, '#d9e1ea');   // a tiny astronaut
-    circle(0, -1.5, 3.4, '#f3f7fb'); ell(.5, -1.3, 2.3, 1.8, 0, '#0f2236');
-    c.restore();
+  // the crew moves from the command module into the lander, INSIDE the ship: the hull opens as a cutaway and
+  // three small floating astronauts pass one at a time through the docking tunnel (nobody went outside)
+  const cut = eo(inv(B.lander - 1.35, B.lander - 1.0, t));   // stays open into shot D, which opens on the lander's cabin
+  if (cut > 0) {
+    c.save(); c.translate(sx, sy); c.rotate(rotC); c.scale(.16, .16); c.globalAlpha = cut;
+    const poly = pts => { c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); };
+    const CMI = [[-34, -50], [22, -16], [22, 16], [-34, 50]], TUN = [[20, -14], [64, -14], [64, 14], [20, 14]];
+    const LMI = [[62, -40], [118, -54], [160, -34], [160, 34], [118, 54], [62, 40]];
+    c.fillStyle = '#16233a'; for (const P of [CMI, TUN, LMI]) { poly(P); c.fill(); }
+    c.save(); poly(LMI); c.clip(); glow(110, 0, 70, '#ffd36b', .35 * eo(inv(B.lander - .9, B.lander - .2, t))); c.restore();
+    c.fillStyle = '#22304b'; c.fillRect(-30, -8, 6, 16);                              // CM couch edge
+    for (let k = 0; k < 4; k++) circle(70 + k * 24, -30 + (k % 2) * 4, 2.6, (k % 2) ? 'rgba(111,211,255,.85)' : 'rgba(255,179,71,.85)');
+    const tiny = (x, y, r, a) => {                                 // a floating astronaut, ~30 long, lying along the ship's axis
+      c.save(); c.translate(x, y); c.rotate(r); c.scale(1.6, 1.6); c.globalAlpha = cut * a;
+      rr(-12, -6, 18, 12, 5, '#e6ebf0'); cap([-12, -3, -20, -4], 3.2, '#d9e1ea'); cap([-12, 3, -20, 5], 3.2, '#d9e1ea');
+      circle(10, 0, 6.5, '#f3f7fb'); ell(11.5, .3, 4.3, 3.6, 0, '#0f2236');
+      c.restore();
+    };
+    const SLOT = [[90, -20], [132, -10], [100, 22]], START = [[-14, -20], [-20, 0], [-14, 20]];
+    c.save(); c.beginPath(); for (const P of [CMI, TUN, LMI]) P.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.clip('nonzero');   // the crew stays inside the hull
+    for (let i = 0; i < 3; i++) {                                  // one at a time, during "They move into the lunar lander"
+      const k = ss(inv(B.lander - 1.12 + i * .3, B.lander - .52 + i * .3, t));
+      const [x0, y0] = START[i], [x2, y2] = SLOT[i];
+      let x, y;
+      if (k < .5) { const q = k * 2; x = lerp(x0, 30, q); y = lerp(y0, 0, ss(q)); }   // drift to the hatch, then through the tunnel
+      else { const q = (k - .5) * 2; x = lerp(30, x2, q); y = lerp(0, y2, ss(q)); }
+      tiny(x, y + 1.2 * Math.sin(t * 2.2 + i * 2), .12 * Math.sin(t * 1.7 + i) + (k > .5 ? .25 * Math.sin((k - .5) * TAU) : 0), 1);
+    }
+    c.restore(); c.restore(); c.globalAlpha = 1;
   }
   // radio from the ship to Houston
   if (t > B.houston - .2 && t < B.houston + 2.6) {

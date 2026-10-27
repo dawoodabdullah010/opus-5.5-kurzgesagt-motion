@@ -9,7 +9,7 @@ A method, a code film template and an evaluation flow, built while making two fi
 
 ## Before anything
 1. State the job in one line: `Doing · Keeping · Changing`.
-2. Read `reference/STYLE.md` (the measured look), `reference/mistakes.md` (K1–K37) and `EVAL.md` (the gates).
+2. Read `reference/STYLE.md` (the measured look), `reference/mistakes.md` (K1–K38) and `EVAL.md` (the gates).
 3. Ask only what changes the work, in one short question: the story, if none is given. Defaults: ElevenLabs premade voice `UGTtbzgh3HObxRjWaSpr` ("Brian", a gentle reader) at natural speed, 1920x1080, 60 fps, no music, sound effects on, everything drawn in code.
 
 ## The pipeline
@@ -46,7 +46,7 @@ A method, a code film template and an evaluation flow, built while making two fi
 
 ## Files
 - `EVAL.md`: the 8 gates with pass numbers. `agents/`: critic prompts.
-- `reference/STYLE.md`: palette, saturation, push/pull rates and cut counts measured from two Kurzgesagt clips (numbers only). `reference/mistakes.md`: K1–K37.
+- `reference/STYLE.md`: palette, saturation, push/pull rates and cut counts measured from two Kurzgesagt clips (numbers only). `reference/mistakes.md`: K1–K38.
 - `template/`: `index.html`, `lib.js` (measured curves, `aim`, `pill`, starfield, planet, bloom, vignette), `film.js` (Apollo 13).
 - `examples/apollo-13/`: `script.txt`, `words.json`, `beats.spec.json`, `beats.js`, `cues.json`.
 - `tools/`: `voice.py`, `beats.py`, `sfx.py`, `mix.py`, `voicecheck.py`, `render.mjs`, `scan.py`, `camlog.mjs`, `sheet.py`, `measure.py` (measure a reference clip's camera and palette).
