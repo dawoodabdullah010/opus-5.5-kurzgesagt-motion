@@ -501,8 +501,9 @@ function shotE(t) {
 // ---------- shot F: round the far side of the Moon, farther from Earth than anyone had been ----------
 function shipPathF(t) {
   const s = clamp((t - B.cut5) / (B.cut6 - B.cut5));
-  const ang = .4 - s * 3.0, r = 560 + 160 * Math.max(0, s - .55) * 4;
-  return [Math.cos(ang) * r * 1.05 - Math.max(0, s - .62) * 450, Math.sin(ang) * r * .8 - 60, ang];   // outside the Moon's disk in front; behind it over the top   // stays in frame while it heads home
+  const ramp = x => .06 * Math.log1p(Math.exp(x / .06));          // a soft max(0, x): the orbit widens and heads home without a corner
+  const ang = .4 - s * 3.0, r = 560 + 160 * ramp(s - .55) * 4;
+  return [Math.cos(ang) * r * 1.05 - ramp(s - .62) * 450, Math.sin(ang) * r * .8 - 60, ang];   // outside the Moon's disk in front; behind it over the top   // stays in frame while it heads home
 }
 function shotF(t) {
   const u = t - B.cut5;
@@ -515,7 +516,7 @@ function shotF(t) {
   spaceBg(t, cx, cy, z); cam(cx, cy, z);
   const behind = Math.sin(ang) < -.15 && Math.abs(Math.cos(ang)) < .75;   // on the far side the ship passes behind the Moon
   c.setLineDash([12, 12]); c.strokeStyle = 'rgba(115,221,158,.55)'; c.lineWidth = 4; c.beginPath();
-  for (let i = 0; i <= 60; i++) { const [px, py] = shipPathF(B.cut5 + (B.cut6 - B.cut5) * i / 60); i ? c.lineTo(px, py) : c.moveTo(px, py); }
+  for (let i = 0; i <= 240; i++) { const [px, py] = shipPathF(B.cut5 + (B.cut6 - B.cut5) * i / 240); i ? c.lineTo(px, py) : c.moveTo(px, py); }
   c.stroke(); c.setLineDash([]);
   const [nx, ny] = shipPathF(t + 1 / 60), dir = Math.atan2(ny - sy, nx - sx);
   const drawShip = () => { glow(sx, sy, 70, '#9fd8ff', .25); ship(t, sx, sy, .2, dir, { hole: true }); };   // lander leads, as in shot A; the stack stays whole
