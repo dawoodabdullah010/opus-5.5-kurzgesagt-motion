@@ -125,6 +125,7 @@ function aimCam(t, keys) {                                      // keys: [t, fx,
   return [lerp(x0, x1, e), lerp(y0, y1, e), z];
 }
 
+const sio = x => .5 - .5 * Math.cos(Math.PI * x);              // sine ease in-out: smooth acceleration through the middle of a move
 function vent(t, HX, HY, k, fade = 1) {
   const dt = t - B.bang; if (dt <= 0) return;
   glow(HX, HY - 40 * k, 260 * k * eo(clamp(dt / .3)), '#dff6ff', (.5 * Math.exp(-1.5 * dt) + .12) * fade);
@@ -199,11 +200,11 @@ function shotB(t) {
 // ---------- shot C: "Houston, we've had a problem", the landing is off, the way home, the crew moves into the lander ----------
 function shipPathC(t) { const u = t - B.cut2; return [520 + 70 * u, -30 + 10 * Math.sin(u * .7)]; }
 const SHIPROT_C = -.05 + .05 * (B.cut2 - B.bang);                  // B's tumble carried over exactly
-function wayHome(s) {                                             // ship -> over the Moon -> round its far side -> back toward Earth
-  const [mx, my] = MOON, R = 330;
-  if (s < .2) { const k = s / .2; return [lerp(1000, mx - 40, k), lerp(-120, my - R, eo(k))]; }
-  if (s < .7) { const a = -Math.PI / 2 + (s - .2) / .5 * Math.PI; return [mx + Math.cos(a) * R, my + Math.sin(a) * R]; }
-  const k = (s - .7) / .3; return [lerp(mx, mx - 1500, k), lerp(my + R, my + 160, ss(k))];
+function wayHome(s) {                                             // ship -> under the Moon -> round its far side -> over the top -> back toward Earth (the route shot F flies)
+  const [mx, my] = MOON, R = 330;                                 // pieces meet at the same point with the same direction: no gap, no corner
+  if (s < .2) { const k = s / .2; return [lerp(1000, mx, k), lerp(-120, my + R, eo(k))]; }
+  if (s < .7) { const a = Math.PI / 2 - (s - .2) / .5 * Math.PI; return [mx + Math.cos(a) * R, my + Math.sin(a) * R]; }
+  const k = (s - .7) / .3; return [lerp(mx, mx - 1500, k), lerp(my - R, my - 160, ss(k))];
 }
 function shotC(t) {
   const u = t - B.cut2;
@@ -214,14 +215,14 @@ function shotC(t) {
    * Math.exp(.035 * u);
   let [cx, cy] = aim(sx, sy, (sx - 300) * .55 * p, (sy - 0) * .55 * p, z);
   // "The Moon landing is over": one straight move onto the Moon, starting from the current camera
-  const m = eio(inv(B.landing - .3, B.landing + 1.2, t));
+  const m = sio(inv(B.landing - .3, B.landing + 1.2, t));
   if (m > 0) {
     const zc = z, z1 = 1.05 * Math.exp(.045 * u); z = lz(z, z1, m);
     const [mx, my] = MOON, ox = (mx - cx) * zc, oy = (my - cy) * zc;
     [cx, cy] = aim(mx, my, ox * (1 - m) + 300 * m, oy * (1 - m) + 40 * m, z);
   }
   // "They move into the lunar lander": one straight move onto the ship, from the current camera, then a creep
-  const g = eio(inv(B.home, B.cut3, t));                         // one calm push all the way to the cut (never parks), close enough to see the crew inside
+  const g = sio(inv(B.home, B.cut3, t));                         // one calm push all the way to the cut (never parks), close enough to see the crew inside
   if (g > 0) {
     const zc = z, z2 = 9 * Math.exp(.04 * Math.max(0, t - B.home));
     const tx = sx + 12, ox = (tx - cx) * zc, oy = (sy - cy) * zc;
@@ -459,7 +460,7 @@ function shotE(t) {
     const a = SS((t - B.square + .05) * 30);
     let fx = FILTER0[0], fy = FILTER0[1] + (1 - a) * 30;
     const tryP = inv(B.round_ + .35, B.round_ + .75, t), back = inv(B.round_ + .75, B.round_ + 1.1, t);
-    fx += 270 * eio(tryP) - 100 * eo(back);                        // hits the rim of the round hole, bounces back                  // slides at the hole, hits the rim, bounces back
+    fx += 220 * tryP * tryP - 80 * eo(back);                       // speeds into the rim (edge 520), hits it, bounces back                        // hits the rim of the round hole, bounces back                  // slides at the hole, hits the rim, bounces back
     const asm = eio(inv(B.works + .05, B.works + .55, t));
     fx = lerp(fx, BOX[0], asm); fy = lerp(fy, BOX[1], asm);
     c.save(); c.globalAlpha = clamp((t - B.square + .05) * 10);
@@ -468,7 +469,9 @@ function shotE(t) {
       c.strokeStyle = '#6b7484'; c.lineWidth = 12 * asm; c.beginPath(); c.moveTo(fx + 90, fy); c.lineTo(PORT[0], PORT[1]); c.stroke();
     }
     rr(fx - 110, fy - 110, 220, 220, 16, '#cfd6df'); rr(fx - 110, fy + 40, 220, 70, 16, '#a7b0bd');
-    for (let i = 0; i < 5; i++) rr(fx - 85, fy - 80 + i * 32, 170, 12, 6, '#7d8796');
+    rr(fx - 84, fy - 84, 168, 168, 10, '#3b4658');                // a filter cartridge: a mesh grille in a metal frame
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) rr(fx - 74 + i * 26, fy - 74 + j * 26, 18, 18, 4, '#8e9aab');
+    for (const k of [-1, 1]) rr(fx + k * 110 - 8, fy - 30, 16, 60, 6, '#7d8796');
     if (t > B.works + .3) {                                       // bag over the box, tape across it, cover as a stiffener (grow in)
       const sp = SS((t - B.works - .3) * 30 / 2); c.save(); c.translate(fx, fy); c.scale(lerp(.3, 1, sp), lerp(.3, 1, sp)); c.globalAlpha = clamp((t - B.works - .3) * 10);   // grows in over ~10 frames
       rr(-128, -128, 256, 256, 30, 'rgba(235,246,255,.35)');
@@ -476,6 +479,15 @@ function shotE(t) {
       rr(-128, -150, 256, 40, 8, '#6fa8dc'); c.restore();
     }
     c.restore();
+  }
+  if (t > B.square - .05) {
+    const la = 1 - inv(B.builds - .4, B.builds - .1, t), fxl = FILTER0[0] + 220 * Math.pow(inv(B.round_ + .35, B.round_ + .75, t), 2) - 80 * eo(inv(B.round_ + .75, B.round_ + 1.1, t));
+    const S2 = (wx, wy) => [W / 2 + (wx - cx) * z, H / 2 + (wy - cy) * z];
+    if (la > 0) {
+      scr(); let [px, py] = S2(fxl, FILTER0[1] + 150); label(px, py, 'SQUARE FILTER', 26, t - B.square, undefined, undefined, la);
+      if (t > B.round_ - .1) { [px, py] = S2(PORT[0], PORT[1] + 160); label(px, py, 'ROUND HOLE', 26, t - B.round_ + .1, 'rgba(6,20,40,.82)', '#ffd98a', la); }
+      cam(cx, cy, z);
+    }
   }
   // the power-down darkens the whole cabin; frost grows from the edges as it gets cold
   scr();
@@ -544,8 +556,9 @@ function shotG(t) {
   let z = lz(.74, .92, eo(ss(inv(0, 1.8, u))));                  // F ends at rest: G leaves rest (zero across the cut)
   z *= Math.exp(.05 * u);                                        // never parks, through the end card
   const [cx, cy] = aim(capX, capY, 0, lerp(0, -120, eo(ss(inv(B.cut6, B.cut6 + 2.4, t)))) * 0 + 0, z);
-  const camY = lerp(capY, 120, inv(splash - .6, splash + .8, t));
-  const C2 = [capX, Math.min(capY - 230, camY)];                  // framed above the capsule so all three canopies fit
+  const capLin = lerp(-420, 300, (t - B.cut6) / (splash - B.cut6));   // unclamped fall, for the camera only
+  const camCap = 300 - 40 * Math.log1p(Math.exp((300 - capLin) / 40));   // the camera eases out of the fall (the capsule itself stops on the water)
+  const C2 = [capX, camCap - 230];                                // framed above the capsule so all three canopies fit
   window.CAM = [C2[0], C2[1] - 80 / z, z];
   scr();
   const sky = c.createLinearGradient(0, 0, 0, H);

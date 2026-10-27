@@ -14,6 +14,16 @@ Nothing reaches the director until it passes every gate below, in order. Each ga
 ## Gate 2b. Framing
 - `python tools/framecheck.py framing.json`: every subject box inside every camera key by at least 15 px. Run it after every layout or camera change.
 
+## Gate 2c. Peak frames: what each picture says, and is it true
+- Render one frame per narration beat (beat + 0.45 s, before any cut) and look at each at full size, 4 to a sheet at 960x540 or bigger.
+- For each: what does it show to someone who has not read the script? Is it true (scale, inside or outside, order of events)? Does any prop read as something else (a filter that looks like paper)? Does any drawing contradict another shot (two routes for one trip)?
+- Every prop the narration names gets its own shape and a label.
+
+## Gate 2d. Smooth paths and camera
+- `node tools/camfull.mjs out/cams.json` then `python tools/camcheck.py out/cams.json --cuts <cut frames> --skip <shake frame>:<half width>`: no sudden change of acceleration anywhere except cuts and planned shakes.
+- Every drawn path: sample it at 1000+ points; the largest bend between neighbouring points is no bigger than on the rest of the curve, and no step jumps (a gap). Pieces of a path meet at the same point in the same direction; blend with a soft ramp, never `max(0, x)`.
+- Long moves use a sine ease (`.5 - .5 cos(pi x)`): the cubic ease-in-out flips from speeding up to slowing down in one frame. A camera following something that stops eases out; it never stops dead.
+
 ## Gate 3. Motion scan
 `python tools/scan.py frames --cuts <cut frames> --flash <flash frames>`
 
